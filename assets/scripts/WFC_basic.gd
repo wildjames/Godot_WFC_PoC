@@ -36,9 +36,9 @@ var allowed_neighbours : PoolByteArray = [
 # The weights for each possible neighbour, for each tile type
 # In order, so [grass_weight, sand_weight, water_weight]. Must sum to 1.0
 var tile_weights = [
-	60, # Grass
+	40, # Grass
 	5,  # Sand
-	35, # Water
+	60, # Water
 ]
 
 # These are vectors that point to a cells neighbours
@@ -74,10 +74,25 @@ func _ready():
 	update_all_superpositions()
 
 
+func _input(event):
+	# Mouse in viewport coordinates.
+	if event is InputEventMouseButton:
+		if event.is_pressed():
+			collapse_next()
+
 
 func _physics_process(delta):
-#	collapse_all()
+	if Input.is_action_just_pressed("test_scene_playpause"):
+		var gopher_timer = get_node("GopherTimer")
+		if gopher_timer.is_stopped():
+			gopher_timer.start()
+		else:
+			gopher_timer.stop()
 	pass
+
+
+func _on_Timer_timeout():
+	collapse_next()
 
 
 func sum(arr:Array):
@@ -215,40 +230,11 @@ func collapse_cell_state(loc):
 	return state
 
 
-func _on_Timer_timeout():
-	collapse_next()
-#	pass
-
-
-func update_cell_entropy(cell):
-#	var shannon_entropy_for_square = log(sum(weight)) - (sum(weight * log(weight)) / sum(weight))
-	var entropy : float = 0.0
-	var cell_superposition = cell_superpositions[cell]
-	
-	if not (cell_superposition & 1):
-		for i in range(1, num_tiles+1):
-			if (cell_superposition >> i) & 1:
-				entropy -= tile_weights[i-1] * log(tile_weights[i-1])
-
-		
-	cell_entropies[cell] = entropy
-
-	return entropy
-
-
-func update_all_superpositions():
-	var all_cells = get_used_cells()
-	var cell_ID : int
-	
-	for cell in all_cells:
-		cell_ID = get_cell(cell.x, cell.y)
-		if cell_ID != -1:
-			update_cell_superposition(cell)
-
 func collapse_all():
 	while collapse_next() > 0:
 		pass
 	return
+
 
 func collapse_next():
 	var target_cell : Vector2
@@ -290,3 +276,29 @@ func collapse_next():
 
 #	print("Collapsing cell at (%d, %d), which is currently in superposition %d and has entropy %.3f\n\n" % [target_cell.x, target_cell.y, cell_superpositions[target_cell], cell_entropies[target_cell]])
 	return collapse_cell_state(target_cell)
+
+
+func update_cell_entropy(cell):
+#	var shannon_entropy_for_square = log(sum(weight)) - (sum(weight * log(weight)) / sum(weight))
+	var entropy : float = 0.0
+	var cell_superposition = cell_superpositions[cell]
+	
+	if not (cell_superposition & 1):
+		for i in range(1, num_tiles+1):
+			if (cell_superposition >> i) & 1:
+				entropy -= tile_weights[i-1] * log(tile_weights[i-1])
+
+		
+	cell_entropies[cell] = entropy
+
+	return entropy
+
+
+func update_all_superpositions():
+	var all_cells = get_used_cells()
+	var cell_ID : int
+	
+	for cell in all_cells:
+		cell_ID = get_cell(cell.x, cell.y)
+		if cell_ID != -1:
+			update_cell_superposition(cell)
