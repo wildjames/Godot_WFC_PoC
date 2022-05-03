@@ -7,8 +7,9 @@ var rng = RandomNumberGenerator.new()
 var num_tiles = 3
 var uncollapsed_ID = 0
 
+# 'Anything' represents a FULLY uncertain state
+var anything = int(pow(2, num_tiles + 1) - 2)
 var all_forbidden = 0
-var anything : int
 
 # Will be initialised with every cell being in all states. Keyed by Vector2.
 # A 2D array will almost CERTAINLY be faster, but will need extra logic to track 
@@ -35,9 +36,9 @@ var allowed_neighbours : PoolByteArray = [
 # The weights for each possible neighbour, for each tile type
 # In order, so [grass_weight, sand_weight, water_weight]. Must sum to 1.0
 var tile_weights = [
-	0.4, # Grass
-	0.2,  # Sand
-	0.4, # Water
+	60, # Grass
+	5,  # Sand
+	35, # Water
 ]
 
 # These are vectors that point to a cells neighbours
@@ -55,7 +56,7 @@ var cardinal_directions = [
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	anything = int(pow(2, num_tiles + 1) - 2)
+	randomize()
 	
 	var all_cells = get_used_cells()
 	var cell_state : int
@@ -64,31 +65,13 @@ func _ready():
 		
 		# If we're a collapsed cell, set the appropriate superposition.
 		if cell_state > 0:
-			print(cell)
-			print(cell_state)
 			cell_superpositions[cell] = (1 << cell_state) + 1
 			cell_entropies[cell] = 0.0
-			print(cell_superpositions[cell])
-			print()
 		else:
 			cell_superpositions[cell] = anything
 			cell_entropies[cell] = 1.0
 
-#	collapse_cell_state(Vector2(0,0))
-
 	update_all_superpositions()
-
-	print("\n\n\n----------------------------------------------\n\n")
-	var cells = [
-		Vector2(0,0),
-		Vector2(0,1),
-		Vector2(2,0),
-		Vector2(2,1),
-		Vector2(4,0),
-	]
-	for cell in cells:
-		print("Doing cell (%d, %d) which has a superposition of %d" % [cell.x, cell.y, cell_superpositions[cell]])
-		update_cell_entropy(cell)
 
 
 
@@ -105,13 +88,15 @@ func sum(arr:Array):
 
 # My gut says this could be a shader - but I don't know how well they'd interact 
 # if the cells are updated asynchronously... It could be problematic?
+# Note that I've left the debugging print statements deliberately commented, rather than removed. 
+# I anticipate problems when I add more complex rules!!
 func update_cell_superposition(cell):
 #	print("\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 #	print("I am updating the possible states of the cell at (%d, %d)" % [cell.x, cell.y])
 	if not cell_superpositions.has(cell):
 #		print("That cell isn't in the dict, initialising as anything and computing it...")
 		cell_superpositions[cell] = anything
-		cell_entropies[cell] = 0
+		cell_entropies[cell] = 0.0
 	
 	var other : Vector2
 	var other_superposition : int
@@ -177,9 +162,11 @@ func collapse_cell_state(loc):
 	# Returns 0 if the cell was already collapsed.
 	# Returns -1 if the cell is unable to be collapsed, and sets its superposition to allow all states.
 	
+	var NextCell = get_node("NextCell")
+	NextCell.position = map_to_world(loc) + (cell_size/4)
+	update()
+	
 	if cell_superpositions[loc] & 1:
-		print("Cell %d, %d is already collapsed!" % [loc.x, loc.y])
-		print("Cell entropy is %.3f" % [update_cell_entropy(loc)])
 		return 0
 	
 	var cell_superposition = update_cell_superposition(loc)
@@ -205,7 +192,7 @@ func collapse_cell_state(loc):
 #	possible_bits.shuffle()
 #	var state = possible_bits[0]
 	
-	# Weighted selection
+	# Weighted state selection
 	var state : int
 	var rand_num = rng.randf() * sum_of_weights
 	for i in possible_bits:
@@ -213,8 +200,6 @@ func collapse_cell_state(loc):
 			state = i
 			break
 		rand_num -= tile_weights[i-1]
-	
-#	print("From possible states: ", possible_bits, ", I chose %d" % [state])
 	
 	set_cell(loc.x, loc.y, state)
 	
@@ -237,30 +222,16 @@ func _on_Timer_timeout():
 
 func update_cell_entropy(cell):
 #	var shannon_entropy_for_square = log(sum(weight)) - (sum(weight * log(weight)) / sum(weight))
-	var entropy : float
+	var entropy : float = 0.0
 	var cell_superposition = cell_superpositions[cell]
 	
-	if cell_superposition & 1:
-		print("This cell has collapsed, so has no entropy.")
-		entropy = 0
-	else:
-		# Get a list of possible weights
-		var sum_of_weights = 0.0
-		var sum_weight_log_weight = 0.0
-		
-		print("Cell superposition is: %d" % [cell_superposition])
-		
+	if not (cell_superposition & 1):
 		for i in range(1, num_tiles+1):
 			if (cell_superposition >> i) & 1:
-				sum_of_weights += tile_weights[i-1]
-				sum_weight_log_weight += tile_weights[i-1] * log(tile_weights[i-1])
+				entropy -= tile_weights[i-1] * log(tile_weights[i-1])
+
 		
-		entropy = log(sum_of_weights) - (sum_weight_log_weight / sum_of_weights)
-	
-	print("I calculate an entropy of %d" % [entropy])
-	
 	cell_entropies[cell] = entropy
-#	cell_weights[cell] = 1.0/(entropy*entropy)
 
 	return entropy
 
@@ -268,8 +239,6 @@ func update_cell_entropy(cell):
 func update_all_superpositions():
 	var all_cells = get_used_cells()
 	var cell_ID : int
-	
-	print(all_cells)
 	
 	for cell in all_cells:
 		cell_ID = get_cell(cell.x, cell.y)
@@ -281,33 +250,43 @@ func collapse_all():
 		pass
 	return
 
-# Chooses a cell to collapse randomly, weighted by 1/(entropy^2)
 func collapse_next():
-	var cell_ID : int
-	
 	var target_cell : Vector2
-	
-	var all_cells = cell_entropies.keys()
-	var entropy_weights = cell_entropies.values()
-	
-	var total_entropy_weights = sum(entropy_weights)
-	var rand_num = rng.randf_range(0.0, total_entropy_weights)
-	for i in range(all_cells.size()):
-		if rand_num < entropy_weights[i]:
-			target_cell = all_cells[i]
-			break
-		rand_num -= entropy_weights[i]
-	
-#	# Weighted selection
-#	var state : int
-#	var rand_num = rng.randf() * sum_of_weights
-#	for i in possible_bits:
-#		if rand_num < tile_weights[i-1]:
-#			state = i
-#			break
-#		rand_num -= tile_weights[i-1]
+	var all_cells = get_used_cells()
+	all_cells.shuffle()
 
+	# Choose a random possible entropy, *weighted by those entropies*, and collapse a cell with it. 
+	var possible_entropies = []
+	var possible_weights = []
+	var sum_weights = 0.0
+	var num_entropies = 0
+	var this_entropy : float
+	for cell in all_cells:
+		if cell_entropies[cell] != 0:
+			this_entropy = cell_entropies[cell]
+			
+			if not possible_entropies.has(this_entropy):
+				num_entropies += 1
+				sum_weights += this_entropy
+				possible_entropies.append(this_entropy)
+				possible_weights.append(1.0/(this_entropy*this_entropy))
 	
+	# Catch the case where I'm fully collapsed
+	if possible_weights.size() == 0:
+		return 0
+		
+	var rand_num = rng.randf_range(0.0, sum_weights)
+	var target_entropy = 0.0
+	for i in range(num_entropies):
+		if possible_weights[i] > rand_num:
+			target_entropy = possible_entropies[i]
+			break
+		rand_num -= possible_weights[i]
 	
-#	print("Collapsing cell at (%d, %d), which is currently in superposition %d and has weight %.3f" % [target_cell.x, target_cell.y, cell_superpositions[target_cell], cell_entropies[target_cell]])
+	for cell in all_cells:
+		if cell_entropies[cell] == target_entropy:
+			target_cell = cell
+			break
+
+#	print("Collapsing cell at (%d, %d), which is currently in superposition %d and has entropy %.3f\n\n" % [target_cell.x, target_cell.y, cell_superpositions[target_cell], cell_entropies[target_cell]])
 	return collapse_cell_state(target_cell)
