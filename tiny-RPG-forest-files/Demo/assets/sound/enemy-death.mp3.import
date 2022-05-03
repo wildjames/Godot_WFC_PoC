@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/enemy-death.mp3-c785b6c9febf26dc6ce3a3e4d3b497b8.mp3str"
+
+[deps]
+
+source_file="res://tiny-RPG-forest-files/Demo/assets/sound/enemy-death.mp3"
+dest_files=[ "res://.import/enemy-death.mp3-c785b6c9febf26dc6ce3a3e4d3b497b8.mp3str" ]
+
+[params]
+
+loop=true
+loop_offset=0

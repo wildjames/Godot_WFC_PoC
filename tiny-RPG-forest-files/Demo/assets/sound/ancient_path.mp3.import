@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/ancient_path.mp3-10dae3e746ae345a2886a64ef4c20b16.mp3str"
+
+[deps]
+
+source_file="res://tiny-RPG-forest-files/Demo/assets/sound/ancient_path.mp3"
+dest_files=[ "res://.import/ancient_path.mp3-10dae3e746ae345a2886a64ef4c20b16.mp3str" ]
+
+[params]
+
+loop=true
+loop_offset=0

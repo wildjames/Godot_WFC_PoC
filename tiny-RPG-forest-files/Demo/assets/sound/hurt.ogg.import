@@ -1,0 +1,15 @@
+[remap]
+
+importer="ogg_vorbis"
+type="AudioStreamOGGVorbis"
+path="res://.import/hurt.ogg-cbb76126722e6e6ae6b14273a78047fc.oggstr"
+
+[deps]
+
+source_file="res://tiny-RPG-forest-files/Demo/assets/sound/hurt.ogg"
+dest_files=[ "res://.import/hurt.ogg-cbb76126722e6e6ae6b14273a78047fc.oggstr" ]
+
+[params]
+
+loop=true
+loop_offset=0

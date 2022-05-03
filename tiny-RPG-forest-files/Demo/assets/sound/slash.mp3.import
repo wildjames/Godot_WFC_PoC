@@ -1,0 +1,15 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+path="res://.import/slash.mp3-adbdc568fd2e68ed1dac3818ed6baf0f.mp3str"
+
+[deps]
+
+source_file="res://tiny-RPG-forest-files/Demo/assets/sound/slash.mp3"
+dest_files=[ "res://.import/slash.mp3-adbdc568fd2e68ed1dac3818ed6baf0f.mp3str" ]
+
+[params]
+
+loop=true
+loop_offset=0
